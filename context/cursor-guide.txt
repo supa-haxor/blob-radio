@@ -1,0 +1,184 @@
+# CRITICAL RULE: DO NOT TOUCH WORKING CODE
+- NEVER modify code that is already working correctly
+- ESPECIALLY DO NOT TOUCH:
+  - Movement system
+  - Context menu behavior
+  - Avatar behavior and synchronization
+  - Room layout and positioning
+  - Chat panel components core functionality
+- If you need to add new features, do so by extending existing code without modifying working functionality
+- When in doubt, create new components or systems instead of modifying existing ones
+- When in doubt about ANY changes, explicitly ask for clarification before proceeding
+
+# CRITICAL RULE: UPDATE THE RIGHT CONTEXT FILE
+- When updating rules, update the appropriate specific context file (avatar-context.txt, chat-context.txt, etc.)
+- Do NOT update the main cursor-guide.txt file unless explicitly said so
+- Each system has its own context file - use the right one for the area you're working on
+- Only update cursor-guide.txt for general development rules or project-wide changes
+
+# Context Directory
+
+**If you're working on or discussing:**
+
+- **Avatar movement, positioning, emotes, profiles** → `avatar-context.txt`
+- **Room layout, visual design, click-to-move** → `room-context.txt`  
+- **Chat system, /commands, messaging** → `chat-context.txt`
+- **Music panel, YouTube, Spotify, queue system** → `music-context.txt`
+- **General development rules, project overview** → `cursor-guide.txt` (this file)
+
+**Quick Reference:**
+- Avatar Actions Store (React Context) → `avatar-context.txt`
+- Movement System constraints → `avatar-context.txt`
+- Socket communication patterns → `chat-context.txt`
+- Protected/locked systems → Check relevant context file
+- Debugging practices → Check relevant context file + general rules here
+
+---
+
+# Working Style & Preferences (Learned from User Collaboration)
+
+## Development Approach Preferences:
+1. **Component-First Thinking**: When implementing UI features, focus on the component logic and functionality FIRST, then handle styling. Don't assume CSS changes are the first step - usually the component needs to be updated to handle new behavior or props.
+
+2. **Check React State Before CSS**: ALWAYS check existing React component state and props before adding new CSS or React state. Many UI behaviors (hover, focus, open/closed) are already handled by existing React state or CSS. Don't duplicate functionality.
+
+3. **Architecture Quality Over Speed**: User prefers clean, well-structured solutions even if they take more effort. When given options (props vs hooks vs store), they chose the React Context store approach for avatar actions because it was the most architecturally sound, despite being more complex.
+
+4. **Consistency is Critical**: User highly values when different interaction methods (right-click menu vs chat commands) produce identical results. This kind of consistency makes the app feel polished and professional.
+
+5. **Comprehensive Documentation**: User appreciates thorough documentation that captures not just what was built, but why architectural decisions were made and how systems integrate together.
+
+6. **Gaming UX Patterns**: User has a strong appreciation for familiar gaming interaction patterns (World of Warcraft-style commands, gaming chat systems). These references resonate and should be used when explaining or designing features.
+
+7. **Proactive Problem Solving**: User appreciates when I catch and fix issues (like the React hooks violation) without being asked. Being thorough and thinking through potential problems is valued.
+
+8. **Explain Trade-offs**: When presenting multiple implementation options, user wants to understand the benefits and drawbacks of each approach, not just a recommendation.
+
+## Communication Style:
+- User gives positive feedback when excited about results ("brother, excellent work")
+- Appreciates when I explain not just what was implemented, but why it's cool/beneficial
+- Values learning opportunities and wants to improve our working relationship over time
+- Direct and clear about preferences when asked for decisions
+
+## Technical Quality Standards:
+- Clean separation of concerns (store pattern for avatar actions)
+- Proper React patterns and avoiding anti-patterns
+- Error prevention and proper debugging approaches
+- Real-time multiplayer features that work reliably
+- Professional polish in user interactions
+
+# Project Vision – Multiplayer Music Room
+
+## Overview
+This is a multiplayer web application where users can enter a shared 2D room. Each person appears as a custom avatar and can move across the room by clicking. When they join or leave, their avatars should appear/disappear in real time. Users can right-click on other avatars to trigger fun interactions (e.g. dance, wave).
+
+The main purpose of the room is to listen to music together. Users can share YouTube or Spotify songs by typing song names or pasting links, which are added to a shared queue. The song currently playing is synchronized across everyone in the room. Playback should follow official API rules (e.g. ads are okay if unavoidable, but must respect policies).
+
+## Welcome System Architecture
+
+### Dual Welcome System:
+The application uses two different welcome components depending on the user's state:
+
+1. **WelcomePage** (Full Page):
+   - Used for first-time users who haven't configured their profile
+   - Blocks the entire application until user completes setup
+   - Prevents socket connection and room access until configured
+   - Shows "Welcome to Blob Radio!" title
+   - Required for initial user onboarding
+
+2. **WelcomeModal** (Modal Overlay):
+   - Used for editing existing user settings
+   - Renders as a modal overlay on top of the active room
+   - Maintains socket connection and room functionality
+   - Shows "Edit Profile" title
+   - Allows users to change settings without leaving the room
+   - Other users continue to see the user's avatar while editing
+
+### Implementation Details:
+- **WelcomePage**: Controlled by `showWelcome` state, prevents `isReady` from being true
+- **WelcomeModal**: Controlled by `showModal` state, independent of room functionality
+- **Profile Component**: Triggers modal instead of full page when editing
+- **State Management**: Modal updates are applied immediately to avatar and emitted to other users
+- **User Experience**: Seamless editing without disrupting multiplayer experience
+
+## Technologies (suggested)
+- React + Tailwind for UI
+- socket.io for real-time connections
+- Node.js backend for socket server
+- YouTube IFrame API
+- Spotify Web Playback SDK (if implemented)
+
+# Development Rules
+
+## Context Files Organization:
+This project uses specialized context files for different system areas:
+- **avatar-context.txt**: Avatar system, movement, actions, profiles, and emotes
+- **room-context.txt**: Room layout, visual design, and interaction systems
+- **chat-context.txt**: Chat system, commands, UX design, and debugging
+- **music-context.txt**: Music integration, queue system, and API implementation
+- **cursor-guide.txt** (this file): General development rules and project overview
+
+## Protected Systems (LOCKED - Requires Explicit Permission):
+- Avatar movement system
+- Avatar rendering and positioning
+- Context menu behavior and positioning
+- Room background and layout
+- Socket communication patterns
+- State synchronization logic
+
+## Server Management:
+- DO NOT attempt to start the development server (npm run dev, npm start, etc.)
+- The user keeps the server running in their own console
+- Focus on code changes and let the user handle server management
+
+## Property Addition Rules:
+- When adding new properties:
+  - ONLY modify property-related code
+  - DO NOT change existing functionality
+  - DO NOT modify core systems
+  - DO NOT alter existing state management
+  - DO NOT change socket communication patterns
+  - ONLY add the property to interfaces and update related handlers
+
+## Documentation:
+- Update cursor-guide.txt when adding new general rules or constraints
+- Update specific context files when adding system-specific information
+- Keep documentation up-to-date with all changes
+- Document any new features or improvements
+- Maintain clear and organized sections
+
+## Debugging Practices
+
+### Core Principle:
+- ALWAYS add logging before making code changes
+- Understand the current behavior before attempting fixes
+- Use systematic debugging approach
+
+### Implementation Rules:
+1. Logging First:
+   - Add comprehensive logging before any code changes
+   - Log all relevant state changes and transitions
+   - Log function entry/exit points
+   - Log important variable values
+   - Use descriptive log messages
+
+2. Debugging Process:
+   - First, add logs to understand current behavior
+   - Identify the exact point where behavior deviates
+   - Understand the data flow and state changes
+   - Only then propose and implement fixes
+   - Verify fixes with the same logging
+
+3. Logging Best Practices:
+   - Use consistent log message format
+   - Include relevant context in log messages
+   - Log both before and after state changes
+   - Log error conditions and edge cases
+   - Remove or comment out debug logs before committing
+
+4. State Tracking:
+   - Log state changes in all layers (UI, controller, socket)
+   - Track state transitions and their triggers
+   - Log timing of state changes
+   - Verify state consistency across layers
+   - Use logs to identify state synchronization issues

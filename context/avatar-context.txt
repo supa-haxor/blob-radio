@@ -1,0 +1,162 @@
+# Avatar System Context
+
+## Movement System
+The avatar movement is handled by a dedicated MovementSystem class that provides precise, step-by-step movement control.
+
+### Core Principle:
+- The avatar MUST move in a straight line to the target
+- NO jumping or teleporting to positions is allowed
+- Every position change must be visible and traceable
+- Movement must be continuous and mechanical
+- Movement must follow the direct path to target (no staircase patterns)
+
+### Technical Implementation:
+- Step Size: 24 pixels
+- Update Interval: 50ms (20fps)
+- Movement Speed: 480 pixels per second
+- Uses setTimeout for consistent timing
+- Updates position through a callback system
+- Decoupled from React's state management
+- Uses Pythagorean theorem for distance calculation
+- Calculates proper X/Y movement ratios for straight-line movement
+
+### Important Constraints:
+1. The avatar must never jump or teleport
+2. Every position change must be exactly one step
+3. Movement must be visible and traceable
+4. No shortcuts or optimizations that could cause jumps
+5. Position updates must be continuous and mechanical
+6. Movement must follow the direct path to target
+7. X and Y movement must be properly ratioed for straight lines
+
+## Avatar State Synchronization Rules
+
+### Core Principle:
+- Avatar states MUST be synchronized across UI, controller, and socket layers
+- NO state discrepancies are allowed between layers
+- Every state change must be traceable and consistent
+
+### Implementation Rules:
+1. Avatar Properties:
+   - All properties must be defined in the Avatar interface
+   - Properties must be consistently named and typed with TypeScript
+   - Optional properties must be explicitly marked with `?`
+   - All properties must have explicit default values
+   - Use nullish coalescing (`??`) instead of logical OR (`||`) for defaults
+
+2. State Management:
+   - UI must reflect the true state from the controller
+   - Controller must maintain the authoritative state
+   - Socket must transmit the complete state
+   - State updates must be atomic and complete
+   - All state updates must be validated
+   - Invalid states must be rejected
+   - State transitions must be logged
+   - Debug logging must be comprehensive
+
+## Avatar Actions Store (Centralized State Management)
+
+### Core Principle:
+- Avatar actions are centralized in a React Context store for consistency
+- All avatar action triggers (right-click menu, chat commands) use the same functions
+- Store provides clean separation of concerns and reusable action logic
+
+### Implementation Rules:
+1. Store Structure:
+   - Located in `frontend/src/store/AvatarActionsStore.tsx`
+   - Uses React Context API for global state management  
+   - Provides AvatarActionsProvider wrapper component
+   - Exports useAvatarActions custom hook for consuming the store
+   - All action functions use useCallback for performance optimization
+
+2. Store wiring (current):
+   - **`AvatarActionsProvider`** calls `useAvatars()` and `useMySession()` — **no props**; it reads `selfId`, `setAvatars`, current `avatars` from those hooks
+   - Emits socket events (`emitAvatarDance`, etc.) after updating local avatar state
+
+3. Action Functions:
+   - triggerDance(): Toggles dance state, stops meditation
+   - triggerGreet(): Temporary greeting animation with auto-reset
+   - triggerJump(): Temporary jump animation with auto-reset  
+   - triggerMeditate(): Toggles meditation state, stops dancing
+   - All functions check for valid selfId before executing
+   - All functions emit corresponding socket events for synchronization
+
+4. Integration points:
+   - `App.tsx`: wraps tree with `AvatarActionsProvider`; self context menu actions use `useAvatarActions`
+   - `ChatPanel/ChatInput.tsx`: `/dance` etc. use the same store (via `useAvatarActions`)
+
+### Benefits:
+- Single source of truth for avatar action logic
+- Consistent behavior between right-click menu and chat commands
+- Clean separation of concerns (UI vs logic)
+- Easy testing and maintainability
+- Follows React best practices with Context API
+
+## Profile System Rules
+
+### Core Principle:
+- Profile information must persist across sessions
+- Profile updates must be synchronized across all users
+- Profile changes must not affect avatar position or movement
+
+### Implementation Rules:
+1. Profile Storage:
+   - Profile data (name, color) is stored in localStorage
+   - Profile is loaded on initial page load
+   - Profile persists across browser sessions
+   - Profile is only reset if localStorage is cleared
+
+2. Profile Updates:
+   - Profile updates are synchronized via WebSocket
+   - Updates include name and color changes
+   - Updates preserve current avatar position
+   - Updates are broadcast to all connected users
+   - Movement system state is preserved during updates
+
+3. Profile UI:
+   - Profile panel is displayed in top-left corner
+   - Profile shows current name and color
+   - Profile can be edited via settings icon
+   - Profile updates are immediate and synchronized
+   - Profile panel is always visible in the room
+
+## Emote Development Rules
+
+### Core Principle:
+- Emotes must be fun and Warcraft-themed
+- All emotes must be synchronized across all users
+- Emotes should follow established patterns for consistency
+
+### Implementation Rules:
+- ALWAYS read and follow EMOTE_PATTERN.md
+- Emotes must follow the established pattern for consistency
+- All emotes must be synchronized across all users
+- Emotes should be fun and Warcraft-themed
+
+### Current Emote Status:
+✅ Dance: Continuous bouncy animation
+✅ Greet: Quick horizontal squeeze animation (plays twice)
+✅ Jump: Vertical bounce animation with timing
+✅ Meditate: Peaceful sitting animation
+
+### Planned Emotes:
+- More emote animations (wave, cheer, laugh)
+- Visual emote text bubbles
+- Sound effects for emotes
+- Emote cooldown system
+
+## Avatar Visual System
+
+### Core Implementation:
+- Avatars are represented as squares in the room with custom animations
+- Clicking anywhere in the room moves your avatar (square) to that position
+- Avatar movement is synchronized across all users in real-time
+- Context menu for others: anchored from pointer / long-press with viewport clamping (not “room-relative” coords); see `contextMenuViewport.ts`
+- Emotes (like dance) are synchronized across all connected users
+- Emotes persist until avatar movement or manual deactivation
+
+### Protected Systems (LOCKED - Requires Explicit Permission):
+- Avatar movement system
+- Avatar rendering and positioning
+- Context menu behavior and positioning
+- State synchronization logic 

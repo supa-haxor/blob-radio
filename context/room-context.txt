@@ -1,0 +1,45 @@
+# Room System Context
+
+## Room Layout and Design
+
+### Visual Style
+- A 2D room with a 3D-ish frame (walls/ceiling lines), playful comic-style UI
+- The `.room` panel is **fixed width** (see `frontend/src/App.css`), centered in the app — not edge-to-edge on large monitors
+- Context menus: `position: fixed`; placement uses `frontend/src/lib/contextMenuViewport.ts` + `frontend/src/config/roomUi.ts`
+
+### Implementation (current code)
+- **`RoomView.tsx`**: wraps the interactive area; floor / empty space uses `useRoomInteractions` for click-to-move
+- **`RoomBackground.tsx`**: mixes **SVG** (ceiling/wall frame) + **images** for floor (e.g. forest/city) — not a full SVG room map
+- Movement target is computed from DOM (**`.room` / `.room-bottom`**) in `frontend/src/lib/roomDom.ts` + `MovementSystem` in `frontend/src/movement.ts`
+
+### Room Status
+✅ Basic room layout with 3D perspective
+✅ Real-time synchronization
+✅ Comic-style UI elements
+
+## Room Interaction System
+
+### Core Principles:
+- Room serves as the primary interface for user interaction
+- Clicking anywhere in the room moves your avatar to that position
+- Room must accommodate multiple users simultaneously
+- Room layout must be consistent across all connected users
+
+### Technical Implementation:
+- Click/touch on the room (not on avatars/menu) → `useRoomInteractions` → movement + socket sync
+- Real-time avatar positions via Socket.io (`useRoomSocket`, backend `avatars:update`, etc.)
+
+## Sensitive surfaces (coordinate with team before changing)
+- Floor / coordinate mapping (`roomDom`, `movement.ts`, backend avatar map)
+- Room layout CSS (sizes affect click mapping)
+
+## Room Customization (Planned)
+- Room customization options
+- Different room themes or layouts
+- User-configurable room elements
+
+## Room Performance
+- Room must handle multiple concurrent users
+- Smooth rendering and interaction performance
+- Efficient SVG rendering and updates
+- Optimized click detection and coordinate mapping 

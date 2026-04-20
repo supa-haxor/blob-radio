@@ -1,0 +1,141 @@
+# Music System Context
+
+## Music System Overview
+
+### Core Purpose:
+The main purpose of the room is to listen to music together. Users can share YouTube or Spotify songs by typing song names or pasting links, which are added to a shared queue. The song currently playing is synchronized across everyone in the room.
+
+### Implementation Principles:
+- Playback should follow official API rules (e.g. ads are okay if unavoidable, but must respect policies)
+- Music playback logic can assume that one user is the "host" controlling the player, and the rest follow
+- Synchronized playback across all users
+- Shared music queue system
+
+## Core Music Features
+
+### Planned Features:
+- Shared music queue
+- YouTube playback via IFrame API
+- Optional Spotify support via Web Playback SDK (requires user authentication & premium accounts)
+- Synchronized playback across all users
+
+### Current Implementation Status:
+✅ Music queue system (implemented with proper queue/currentSong separation)
+✅ YouTube integration via IFrame API (implemented)
+✅ Queue management (/play, /skip, /clear, /remove, /queue commands)
+✅ Socket-based real-time synchronization
+✅ Fixed: Adding songs to queue no longer restarts current song
+
+## Technical Implementation
+
+### Queue System Architecture:
+- **currentSong**: The song currently playing (separate from queue)
+- **queue**: Array of upcoming songs (queue[0] = next song, not current)
+- **history**: Array of previously played songs
+- **Socket Events**:
+  - `music:state`: Full state update (when currentSong changes)
+  - `music:queueUpdate`: Queue-only update (when songs added without affecting playback)
+  - `music:addToQueue`: Add song to queue
+  - `music:skip`: Skip current song
+  - `music:clear`: Clear entire queue
+  - `music:remove`: Remove song by index from queue
+
+### YouTube Integration:
+- YouTube IFrame API for playback
+- Respect YouTube's playback policies
+- Handle ads appropriately (ads are acceptable)
+- API integration for song search and queueing
+- Auto-progression through queue when songs end
+
+### Spotify Integration (Optional):
+- Spotify Web Playback SDK
+- Requires user authentication
+- Requires Spotify Premium accounts
+- Handle authentication flow
+- Respect Spotify's API usage policies
+
+### Synchronization System:
+- Host-based playback control model
+- One user acts as the "host" controlling playback
+- Other users follow the host's playback state
+- Real-time synchronization via WebSocket
+- Handle host disconnection scenarios
+- Time sync updates every 2 seconds
+- Automatic seek adjustment for drift > 2 seconds
+
+## Music Queue System
+
+### Queue Management:
+- Users can add songs by typing song names or pasting links via `/play` command
+- Shared queue visible to all users via `/queue` command
+- Queue order and management
+- Song metadata display (title, artist, duration, thumbnails, channel)
+- Queue manipulation commands:
+  - `/play [URL]`: Add song or playlist to queue
+  - `/skip`: Skip current song
+  - `/clear`: Clear entire queue
+  - `/remove [index]`: Remove specific upcoming song
+  - `/queue`: View current queue status
+
+### Song Input Methods:
+- Direct song name search (not yet implemented)
+- YouTube URL pasting ✅
+- YouTube Playlist URL pasting ✅
+- Spotify URL pasting (if implemented)
+
+### Fixed Issues:
+- ✅ Adding songs to queue no longer causes current song to restart
+- ✅ Proper separation between currentSong and queue array
+- ✅ Socket events optimized to only trigger playback changes when necessary
+
+## Constraints & Policies
+
+### API Compliance:
+- We are fine with ads if necessary (e.g. in YouTube playback)
+- We want to respect Spotify and YouTube's playback policies
+- Follow official API terms of service
+- Handle rate limiting appropriately
+
+### Simplicity Preference:
+- Simplicity is preferred — no unnecessary UI
+- Focus on core music sharing functionality
+- Clean and intuitive music controls
+- Minimal but effective queue interface
+
+## Architecture Considerations
+
+### Host System:
+- Dynamic host selection
+- Host failover mechanisms
+- Host privileges and responsibilities
+- Host UI indicators
+
+### State Management:
+- Music state synchronization via React Context (MusicQueueStore)
+- Queue state management with socket integration
+- Playback position tracking with time sync
+- Volume and control settings (local to each user)
+
+### Error Handling:
+- API failure handling
+- Network disconnection recovery
+- Playback error management
+- Queue corruption prevention
+- Invalid URL handling with user feedback
+
+## Future Enhancements
+
+### Advanced Features:
+- Direct song name search (YouTube Data API)
+- Playlist creation and sharing
+- Music history and favorites
+- Integration with music services
+- Advanced queue management (reordering)
+- Song voting systems
+- Music discovery features
+
+### Technical Improvements:
+- Better synchronization algorithms
+- Improved audio quality options
+- Reduced latency playback
+- Enhanced mobile support 

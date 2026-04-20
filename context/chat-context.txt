@@ -1,0 +1,328 @@
+# Chat System Context
+
+## Chat System Rules
+
+### Core Principle:
+- Chat provides real-time communication between users
+- Chat history is time-based for contextual relevance
+- Chat UI is gaming-style, non-intrusive but accessible
+- Chat sender names use avatar colors for visual consistency
+- Chat commands provide World of Warcraft-style avatar interactions
+
+### Implementation Rules:
+1. Chat UI Behavior:
+   - Chat history is ALWAYS visible (transparent overlay)
+   - Chat input field toggles with Enter key (show) and Escape key (hide)
+   - Empty chat input closes when Enter is pressed (no message sent)
+   - Chat messages display with timestamp, sender name, and message text
+   - Chat sender names use the user's avatar color for consistency
+   - Chat UI is transparent to not obstruct game view
+   - Chat messages auto-scroll to show newest messages
+
+2. Chat Commands System:
+   - Commands start with '/' character (e.g., '/dance', '/greet')
+   - Commands are processed locally (not sent as chat messages)
+   - Commands trigger avatar actions using the centralized AvatarActionsStore
+   - Commands only affect the user's own avatar for security
+   - Unknown commands display help message with available options
+   - Commands close chat input after execution
+   - Supported commands: /dance, /greet, /jump, /meditate, /help, /clear
+   - Avatar commands: /dance (with action message), /greet (silent), /jump (silent), /meditate (with action message)
+   - Chat commands: /help (shows all commands), /clear (clears chat history locally)
+
+3. Chat history / buffer (backend `backend/src/index.ts`):
+   - Server keeps an in-memory `recentMessages` buffer (no DB): max **50** messages, drops older than **20 minutes** on each new message
+   - Constants `HISTORY_TIME_LIMIT` / cleanup are defined; **`chatHistory` is not emitted on connect** — newcomers only see **live** `chatMessage` / `chatMessageUpdate` after they join (verify before documenting “replay on join”)
+   - Frontend: fading / timers are implemented in `ChatMessages` (see component), not re-stated here
+
+4. Socket communication (implemented):
+   - **`chatMessage`** — send/receive new messages
+   - **`chatMessageUpdate`** — edit/update an existing message by id
+   - Payload shape matches `ChatMessage` in the frontend interface (id, text, sender, timestamp, senderColor, …)
+   - Separate from avatar socket events
+
+5. Memory Management:
+   - Backend stores messages in memory array
+   - Time-based cleanup removes old messages automatically
+   - Count-based cleanup as backup (50 message limit)
+   - No persistence across server restarts (intentional)
+
+## Chat Architecture
+
+### Component Structure:
+- **Chat.tsx**: Main chat container, manages state and coordinates between components
+- **ChatMessages.tsx**: Handles message display, fading logic, auto-scroll, and cleanup
+- **ChatInput.tsx**: Separate input component with all input-related logic
+- Clean separation of concerns between coordination, display, and input functionality
+- Modular design for easier maintenance and feature additions
+
+### Chat Messages Component:
+- Handles all message display and rendering logic
+- Manages message fading and time-based cleanup
+- Auto-scroll functionality for new messages
+- Empty state display when no messages are visible
+- Time formatting for message timestamps
+- Communicates with parent Chat component via callbacks
+
+### Chat Input Component:
+- Handles all input field state and logic
+- Manages form submission and validation
+- Processes chat commands and avatar actions integration
+- Manages keyboard events (Enter/Escape) and focus behavior
+- Communicates with parent Chat component via callbacks
+
+### Chat container + state
+- **`Chat.tsx`**: composes `ChatMessages` + `ChatInput`, wires socket listeners, local `messages` state
+- **Visibility / open state** lives in **`ChatStore`** (`frontend/src/store/ChatStore.tsx`): `isChatOpen`, `isChatMessagesPeek` — used by `Chat` and by `useRoomInteractions` (blocks floor clicks when input open). **No `App.tsx` props** for chat state.
+
+## Chat Commands Integration
+
+### Core Principle:
+- Chat commands provide keyboard shortcuts for avatar actions
+- Commands mirror World of Warcraft-style gameplay interactions
+- Commands use the same avatar action store as right-click menus
+- Commands only affect the user's own avatar (security)
+
+### Implementation Rules:
+1. Command Processing:
+   - Commands start with '/' character (e.g., '/dance')
+   - Processed in ChatInput.tsx handleChatCommand function
+   - Commands do not send chat messages (consumed locally)
+   - Unknown commands show help message in chat
+
+2. Supported Commands:
+   - /dance - Triggers dance animation (toggles on/off) - Shows action message when starting
+   - /greet - Triggers greeting animation (temporary) - Silent
+   - /jump - Triggers jump animation (temporary) - Silent
+   - /meditate - Triggers meditation animation (toggles on/off) - Shows action message when starting
+   - /help - Shows all available commands (local system message)
+   - /clear - Clears all chat messages for the user only (local action)
+
+3. Command Integration:
+   - Uses useAvatarActions hook at ChatInput component level (not in function)
+   - Commands call the same store functions as right-click menu
+   - Perfect consistency between chat commands and menu actions
+   - Commands close chat input after execution
+
+4. UX Enhancements:
+   - Commands provide quick access without mouse interaction
+   - Similar to gaming chat systems for familiar user experience
+   - Help system shows available commands for unknown inputs
+   - Commands integrate seamlessly with existing chat functionality
+   - Chat clearing provides local cleanup without affecting other users
+
+### Technical Implementation:
+1. Frontend Components:
+   - **Chat.tsx**: Main coordinator, handles socket communication and state management
+   - **ChatMessages.tsx**: Message display, time-based cleanup, auto-scroll, and fading logic
+   - **ChatInput.tsx**: Input field, command processing, and message sending
+   - Socket functions: emitChatMessage(), onChatMessage(), onChatHistory()
+   - Proper event listener cleanup to prevent duplicate messages
+   - Keyboard event handling for Enter/Escape keys
+   - Avatar actions integration via useAvatarActions hook in ChatInput
+
+2. Backend Logic:
+   - In-memory message buffer with time-based filtering
+   - Automatic cleanup on each new message
+   - History delivery to new connections
+   - Message broadcasting to all clients
+
+3. Command Integration:
+   - useAvatarActions hook called at ChatInput component level (follows React rules)
+   - handleChatCommand function processes commands and calls store functions
+   - Commands use same avatar action logic as right-click menus
+   - Perfect consistency between command and menu-triggered actions
+
+## Chat UX Design
+
+### Design Principles:
+- Similar to gaming chat systems (WoW, Minecraft)
+- Always-visible history for context
+- Minimal UI footprint with transparency
+- Quick access via keyboard shortcuts
+- Avatar color integration for visual identity
+- Time-contextual history for relevance
+- World of Warcraft-style commands for avatar interactions
+- Enhanced Enter key behavior (close empty chat)
+
+### Current Implementation Status:
+✅ Real-time multiplayer chat system
+✅ Chat history with time-based filtering
+✅ Gaming-style chat UI with transparency
+✅ Chat commands (/dance, /greet, /jump, /meditate) integrated with avatar actions
+✅ Enhanced chat UX (Enter closes empty chat)
+✅ Fully modular architecture with three specialized components:
+  • Chat.tsx (coordinator)
+  • ChatMessages.tsx (display & logic)
+  • ChatInput.tsx (input & commands)
+
+## Chat System Debugging
+
+### Debugging Rules:
+- Log socket event sending and receiving
+- Track message duplication issues via listener cleanup
+- Monitor time-based filtering logic
+- Verify event name consistency between frontend/backend
+- Debug memory cleanup and message buffering
+
+### Common Issues:
+- Duplicate message listeners (ensure proper cleanup)
+- Time-based filtering edge cases
+- Socket event naming mismatches
+- Memory leak prevention in message buffering
+
+### Message Broadcasting System:
+- Messages can be either broadcast (global) or local
+- ChatMessage interface includes `broadcast` flag (defaults to true)
+- `broadcast: true` = message sent to all users
+- `broadcast: false` = message only shown to sender
+- System uses `emitChatMessage()` for broadcast messages
+- System uses `onCommand()` for local-only messages
+
+### Message Types:
+- Normal messages: User chat messages (always broadcast)
+- System messages: Help text, errors, queue status (usually local)
+- Action messages: Music actions and avatar actions (usually broadcast)
+- Message types affect styling:
+  • Normal: User's avatar color
+  • System: Purple-blue (#6366F1) - Used for help, errors, and queue information
+  • Action: Orange (#FF6B35) - Used for music actions (add, skip, clear) and avatar actions
+
+### Message Styling:
+- System Messages:
+  • Background: Indigo with transparency (rgba(99, 102, 241, 0.15))
+  • Left Border: Solid indigo (#6366F1)
+  • Bottom Padding: 24px to accommodate progress bar
+  • Progress Bar: White line that shrinks from right to left
+  • Progress Bar Timing: 10 seconds total
+    - 5 seconds: 50% width
+    - 9 seconds: 10% width
+    - 10 seconds: Complete fade out
+  • Auto-removes after 10 seconds with smooth fade
+  • Clean transition with opacity fade
+
+- Action Messages:
+  • Background: Orange with transparency (rgba(255, 107, 53, 0.15))
+  • Left Border: Solid orange (#FF6B35)
+  • Clean transition with opacity fade
+
+- Two types of bracketed content:
+  1. Clickable content (songs/videos):
+     • Normal font weight (no italics)
+     • Subtle hover effect
+     • Opens YouTube video in new tab when clicked
+     • Example: [Song Title • duration]
+  2. Help/tutorial text:
+     • Normal font weight (no italics)
+     • Not clickable
+     • Example: Use /play [URL] to add songs
+     • Auto-removes after 10 seconds
+
+### Queue Message Format:
+- 🎵 Now Playing: [Song Title • duration]
+  • Entire bracketed content in indigo
+  • Clickable link to YouTube video
+- Up Next:
+  1. [Song Title • duration]
+  2. [Song Title • duration]
+  3. [Song Title • duration]
+- All song entries are clickable and colored
+- Information separated by bullet points (•)
+- Shows only song title and duration
+- Single musical note emoji (🎵) for the header
+- Local-only visibility with system message styling
+- Help text (e.g., "Use /play [URL]") remains in normal color
+
+### Music Commands Integration:
+1. Command Structure:
+   - /play [URL] - Add song to queue
+   - /skip - Skip current song
+   - /clear - Clear entire queue
+   - /remove [#] - Remove specific song
+   - /queue - Show current queue
+   - /history - Show recently played
+   - /shuffle - Shuffle queue order
+
+2. Music Action Messages:
+   - Loading: "[User] is adding a song to queue... 🎵"
+   - Success: "[User] added [Song Title] to queue! 🎵"
+   - Skip: "[User] skipped the current song! ⏭️"
+   - Clear: "[User] cleared the queue! 🗑️"
+   - Remove: "[User] removed [Song Title] from queue! 🗑️"
+   - Shuffle: "[User] shuffled the queue! 🔀"
+
+3. Message Broadcasting Rules:
+   - Success messages are broadcast to all users
+   - Error messages are local to the command sender
+   - Loading states are broadcast to show activity
+   - Queue/history display is local to requester
+   - Help text and usage info is local-only
+   - Queue status messages are local-only (current song, upcoming songs)
+
+4. Message Update System:
+   - Loading messages can be updated (e.g., song added)
+   - Uses `emitUpdateMessage()` to modify existing messages
+   - Preserves message ID for continuity
+   - Prevents duplicate messages for same action
+
+### Implementation Details:
+1. Message Handling:
+   ```typescript
+   interface ChatMessage {
+     id: string;
+     text: string;
+     sender: string;
+     timestamp: Date;
+     senderColor: string;
+     messageType?: 'normal' | 'system' | 'action';
+     broadcast?: boolean; // Controls message visibility
+   }
+   ```
+
+2. Socket events (see backend handlers):
+   - `chatMessage`, `chatMessageUpdate` — as above; optional `broadcast` flag on payload where used
+
+3. Command Processing:
+   - Commands check for errors before broadcasting
+   - Success/failure handled appropriately
+   - Loading states show real-time progress
+   - Message updates maintain consistency 
+
+### Message Cleanup:
+1. System Messages:
+   - Automatically removed after 10 seconds
+   - Progress bar indicates time remaining
+   - Fade out transition before removal
+   - Applies to:
+     • Queue information
+     • Help text
+     • Error messages
+   - Removed from both open and closed chat
+   - Clean transition with opacity fade
+
+2. Regular Messages:
+   - Start fading after 1 minute
+   - Completely removed after 10 minutes
+   - Only fade when chat is closed
+   - Visible when chat is open
+   - Maximum 50 messages stored
+
+3. Cleanup Implementation:
+   - Separate timers for system and regular messages
+   - Smooth transitions using CSS
+   - Proper cleanup of timers on unmount
+   - Maintains chat performance
+   - Prevents memory leaks
+
+### Message Types:
+- Two types of bracketed content:
+  1. Clickable content (songs/videos):
+     • Entire content (brackets and text) in indigo (#4F46E5)
+     • Opens YouTube video in new tab when clicked
+     • Subtle opacity change on hover
+     • Example: [Song Title • duration]
+  2. Help/tutorial text:
+     • Normal color
+     • Not clickable
+     • Example: Use /play [URL] to add songs
+     • Auto-removes after 30 seconds 
