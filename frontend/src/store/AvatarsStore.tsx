@@ -7,13 +7,13 @@ import React, {
   type SetStateAction,
 } from 'react';
 import type { Avatar } from '../types/avatar';
-import { sortAvatarsByDepth } from '../lib/avatars';
+import { sortAvatarsStableById } from '../lib/avatars';
 
 interface AvatarsContextValue {
   avatars: Avatar[];
   setAvatars: Dispatch<SetStateAction<Avatar[]>>;
-  /** Depth order for rendering (derived from `avatars`). */
-  sortedAvatars: Avatar[];
+  /** Same avatars as `avatars`, sorted by id so DOM order stays stable; depth uses z-index only. */
+  stableAvatars: Avatar[];
 }
 
 const AvatarsContext = createContext<AvatarsContextValue | null>(null);
@@ -21,14 +21,11 @@ const AvatarsContext = createContext<AvatarsContextValue | null>(null);
 export function AvatarsProvider({ children }: { children: React.ReactNode }) {
   const [avatars, setAvatars] = useState<Avatar[]>([]);
 
-  const sortedAvatars = useMemo(
-    () => sortAvatarsByDepth(avatars),
-    [avatars]
-  );
+  const stableAvatars = useMemo(() => sortAvatarsStableById(avatars), [avatars]);
 
   const value = useMemo(
-    () => ({ avatars, setAvatars, sortedAvatars }),
-    [avatars, sortedAvatars]
+    () => ({ avatars, setAvatars, stableAvatars }),
+    [avatars, stableAvatars]
   );
 
   return (

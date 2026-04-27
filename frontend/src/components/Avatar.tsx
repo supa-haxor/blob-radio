@@ -1,6 +1,7 @@
-import React, { type MutableRefObject } from 'react';
+import React, { type MutableRefObject, useEffect, useRef, useState } from 'react';
 import { timeToHoldToOpenContextMenuMs } from '../config/roomUi';
 import { clampFixedContextMenuPosition } from '../lib/contextMenuViewport';
+import { avatarStackZIndex } from '../lib/avatars';
 import { useAvatars } from '../store/AvatarsStore';
 
 interface AvatarProps {
@@ -14,7 +15,11 @@ interface AvatarProps {
   isGreeting?: boolean;
   isJumping?: boolean;
   isMeditating?: boolean;
+  isSleeping?: boolean;
+  isDead?: boolean;
   isSqueezed?: boolean;
+  /** Transient line shown above the avatar (from `avatar:speech` / typed chat). */
+  speechText?: string;
   isSelf?: boolean;
   menuPosition?: { x: number; y: number } | null;
   /** When omitted (e.g. legacy demos), touch long-press context menu is disabled. */
@@ -26,6 +31,8 @@ interface AvatarProps {
   onTouchMove?: () => void;
   setMenuPosition?: (position: { x: number; y: number } | null) => void;
   setSelectedAvatar?: (id: string | null) => void;
+  /** From full-room rank; when set, z only shifts when depth order vs others changes. */
+  stackZIndex?: number;
 }
 
 const Avatar: React.FC<AvatarProps> = ({
@@ -39,7 +46,10 @@ const Avatar: React.FC<AvatarProps> = ({
   isGreeting = false,
   isJumping = false,
   isMeditating = false,
+  isSleeping = false,
+  isDead = false,
   isSqueezed = false,
+  speechText,
   isSelf = false,
   menuPosition = null,
   contextMenuLongPressTimerRef,
@@ -49,13 +59,48 @@ const Avatar: React.FC<AvatarProps> = ({
   onMouseUp,
   onTouchMove,
   setMenuPosition,
-  setSelectedAvatar
+  setSelectedAvatar,
+  stackZIndex
 }) => {
   const { setAvatars } = useAvatars();
+
+  const speechMountedRef = useRef(false);
+  const [speechLine, setSpeechLine] = useState<string | undefined>(undefined);
+  const [speechEntering, setSpeechEntering] = useState(false);
+  const [speechLeaving, setSpeechLeaving] = useState(false);
+
+  useEffect(() => {
+    if (speechText) {
+      const firstIn = !speechMountedRef.current;
+      speechMountedRef.current = true;
+      setSpeechLine(speechText);
+      setSpeechLeaving(false);
+      if (firstIn) {
+        setSpeechEntering(true);
+        let raf2 = 0;
+        const raf1 = requestAnimationFrame(() => {
+          raf2 = requestAnimationFrame(() => setSpeechEntering(false));
+        });
+        return () => {
+          cancelAnimationFrame(raf1);
+          if (raf2) cancelAnimationFrame(raf2);
+        };
+      }
+      return;
+    }
+    if (!speechMountedRef.current) return;
+    setSpeechLeaving(true);
+    const t = window.setTimeout(() => {
+      speechMountedRef.current = false;
+      setSpeechLine(undefined);
+      setSpeechLeaving(false);
+    }, 280);
+    return () => window.clearTimeout(t);
+  }, [speechText]);
   const handleClick = (e: React.MouseEvent) => {
     if (menuPosition && setMenuPosition) {
       setMenuPosition(null);
-      return;
+      if (!isSelf) return;
     }
     if (onAvatarInteraction) {
       onAvatarInteraction(e, id);
@@ -130,6 +175,8 @@ const Avatar: React.FC<AvatarProps> = ({
     isGreeting ? 'greeting' : '',
     isJumping ? 'jumping' : '',
     isMeditating ? 'meditating' : '',
+    isSleeping ? 'sleeping' : '',
+    isDead ? 'dead' : '',
     isSqueezed ? 'squeezed' : ''
   ].filter(Boolean).join(' ');
 
@@ -138,15 +185,15 @@ const Avatar: React.FC<AvatarProps> = ({
       className="avatar-container"
       style={{
         transform: `translate(${x}px, ${y}px)`,
-        zIndex: Math.floor(y)
+        zIndex: stackZIndex ?? avatarStackZIndex(y, id)
       }}
     >
       {/* Avatar name - positioned outside animated body */}
       <div className="avatar-name-stable">
         {name}
       </div>
-      
-      {/* Avatar body - this is the animated part */}
+
+      {/* Avatar body - animated (dance/jump); speech stays a sibling so it does not inherit motion */}
       <div
         className={avatarClasses}
         style={{
@@ -161,7 +208,48 @@ const Avatar: React.FC<AvatarProps> = ({
         onTouchMove={onTouchMove}
       >
         <div className="eyes" />
+        {isDead ? <span className="avatar-dead-tongue" aria-hidden /> : null}
+        {isSleeping ? (
+          <span className="avatar-sleep-zzz" aria-hidden>
+            <span className="avatar-sleep-z avatar-sleep-z--1">z</span>
+            <span className="avatar-sleep-z avatar-sleep-z--2">z</span>
+            <span className="avatar-sleep-z avatar-sleep-z--3">z</span>
+          </span>
+        ) : null}
       </div>
+
+      {isDead ? (
+        <div className="avatar-dead-angel" aria-hidden>
+          <div className="avatar-dead-angel-bob">
+            <div className="avatar-dead-angel-halo" />
+            <div className="avatar-dead-angel-flap">
+              <span className="avatar-dead-angel-wing avatar-dead-angel-wing--l" />
+              <div className="avatar-dead-angel-body">
+                <div className="avatar-dead-angel-face">
+                  <div className="avatar-dead-angel-face-mouth" aria-hidden />
+                  <div className="eyes" />
+                </div>
+              </div>
+              <span className="avatar-dead-angel-wing avatar-dead-angel-wing--r" />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {speechLine ? (
+        <div
+          className={[
+            'avatar-speech-bubble',
+            speechEntering ? 'is-bubble-enter' : '',
+            speechLeaving ? 'is-bubble-leave' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          role="status"
+        >
+          {speechLine}
+        </div>
+      ) : null}
     </div>
   );
 };

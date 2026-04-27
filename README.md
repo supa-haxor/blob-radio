@@ -4,6 +4,8 @@ A small **multiplayer hangout in the browser**: you’re a blob in a room with f
 
 It’s inspired by other **virtual shared multiplayer** spaces—**Club Penguin** for how you **move**, **Minecraft** and **World of Warcraft** for **multiplayer chat** and slash commands, and **Discord** for **music bots** and typed commands so the group **listens together** on one queue.
 
+![Blob Radio](frontend/public/blob-radio.png)
+
 ---
 
 ## What you’ll find
@@ -11,6 +13,8 @@ It’s inspired by other **virtual shared multiplayer** spaces—**Club Penguin*
 - **Live room** — Walk the floor, emote, poke at other players’ names and menus.
 - **Chat & commands** — [Reference](#chat-commands) for every slash shortcut.
 - **Music queue** — Shared YouTube playback and queue commands for the session.
+
+![Live room](frontend/public/room.png)
 
 Under the hood it’s a **React + TypeScript** SPA talking to a **Node** server over **Socket.io**, with avatars, chat, and music state coordinated in memory for the session.
 
@@ -59,6 +63,8 @@ The **queue** view shows what’s lined up next—**track names**, **length** wh
 - **Emotes** — Dance, greet, jump, and meditate: short animations you can trigger from the **self** context menu or from chat commands (same actions, same outcome—we care about that consistency).
 - **Others** — Open someone’s context menu (right-click or long-press on touch) to see who they are; your own menu is where the fun action buttons live.
 
+![Self context menu — emotes and actions](frontend/public/context-menu-actions.png)
+
 Chat stays available while you hang out; when the chat input is open, it takes priority so you don’t accidentally walk away mid-sentence.
 
 ---
@@ -68,6 +74,10 @@ Chat stays available while you hang out; when the chat input is open, it takes p
 Commands start with **`/`**. Type **`/help`** anytime for a built-in reminder.
 
 A lot of **command feedback** shows up as **temporary** lines—confirmations, errors, and tips that **fade or disappear** after a moment instead of sitting in the log like normal chat.
+
+![Chat in the room](frontend/public/chat-example.png)
+
+![In-app slash command reference](frontend/public/chat-commands.png)
 
 **Avatar**
 

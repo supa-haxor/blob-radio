@@ -12,18 +12,33 @@ interface ServerAvatar {
   isGreeting?: boolean;
   isJumping?: boolean;
   isMeditating?: boolean;
+  isSleeping?: boolean;
+  isDead?: boolean;
   isWalking?: boolean;
   name?: string;
 }
 
-interface ChatMessage {
+export interface ChatMessage {
   id: string;
   text: string;
   sender: string;
   timestamp: Date;
   senderColor: string;
-  messageType?: 'normal' | 'system' | 'notification' | 'quiet' | 'action';
+  messageType?:
+    | 'normal'
+    | 'system'
+    | 'notification'
+    | 'quiet'
+    | 'action'
+    | 'directedGreet'
+    | 'greetEveryone';
   broadcast?: boolean; // true = send to all users, false = local only
+  /** directedGreet / greetEveryone — from socket id + display name */
+  greetFromId?: string;
+  greetToId?: string;
+  greetFromName?: string;
+  greetToName?: string;
+  videoUrl?: string;
 }
 
 // Music interfaces
@@ -59,11 +74,15 @@ const MAX_RETRIES = 5;
 
 export const initSocket = () => {
   if (!socket) {
-    // Get the current host's IP address
+    // Dev: backend on :3001. Prod (nginx/Caddy same host): WebSocket proxied on 443 — use same origin.
+    const explicit = import.meta.env.VITE_SOCKET_URL as string | undefined;
     const protocol = window.location.protocol;
     const hostname = window.location.hostname;
-    const port = '3001'; // Backend port
-    const socketUrl = `${protocol}//${hostname}:${port}`;
+    const socketUrl =
+      explicit?.trim() ||
+      (import.meta.env.PROD
+        ? window.location.origin
+        : `${protocol}//${hostname}:3001`);
 
     socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
@@ -180,6 +199,20 @@ export const emitAvatarMeditate = (isMeditating: boolean) => {
   }
 };
 
+export const emitAvatarSleep = (isSleeping: boolean) => {
+  const currentSocket = getSocket();
+  if (currentSocket.connected) {
+    currentSocket.emit('avatar:sleep', { isSleeping });
+  }
+};
+
+export const emitAvatarDie = (isDead: boolean) => {
+  const currentSocket = getSocket();
+  if (currentSocket.connected) {
+    currentSocket.emit('avatar:die', { isDead });
+  }
+};
+
 export const emitProfileUpdate = (name: string, color: string) => {
   const currentSocket = getSocket();
   if (currentSocket.connected) {
@@ -218,6 +251,8 @@ export const onAvatarsUpdate = (callback: (avatars: Avatar[]) => void) => {
         isGreeting: serverAvatar.isGreeting || false,
         isJumping: serverAvatar.isJumping || false,
         isMeditating: serverAvatar.isMeditating || false,
+        isSleeping: serverAvatar.isSleeping || false,
+        isDead: serverAvatar.isDead || false,
         isWalking: serverAvatar.isWalking || false,
         name: serverAvatar.name
       }));
@@ -261,6 +296,16 @@ export const emitUpdateMessage = (message: ChatMessage) => {
       currentSocket.emit('chatMessageUpdate', message);
     });
   }
+};
+
+export type AvatarSpeechPayload = { speakerId: string; text: string };
+
+export const onAvatarSpeech = (callback: (payload: AvatarSpeechPayload) => void) => {
+  const currentSocket = getSocket();
+  currentSocket.on('avatar:speech', callback);
+  return () => {
+    currentSocket.off('avatar:speech', callback);
+  };
 };
 
 export const onChatMessage = (callback: (message: ChatMessage) => void) => {

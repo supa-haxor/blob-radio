@@ -1,9 +1,42 @@
 import type { Avatar as ClientAvatar } from '../types/avatar';
 import { constrainToFloor } from './room';
 
-/** Lower Y renders in front (pseudo-3D). */
-export function sortAvatarsByDepth(avatars: ClientAvatar[]): ClientAvatar[] {
-  return [...avatars].sort((a, b) => a.y - b.y);
+const Z_STRIDE = 512;
+
+function idTieSuffix(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) {
+    h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  return h % Z_STRIDE;
+}
+
+/**
+ * Solo / legacy: pseudo-3D from `y` + id tie. Prefer {@link computeAvatarStackZIndices} in-room.
+ */
+export function avatarStackZIndex(y: number, id: string): number {
+  return Math.floor(y) * Z_STRIDE + idTieSuffix(id);
+}
+
+/**
+ * z-index from depth rank among all avatars (sort by `y`, then `id`). Value only
+ * changes when you cross another blob’s `y` (or swap id order at the same `y`).
+ */
+export function computeAvatarStackZIndices(avatars: ClientAvatar[]): Record<string, number> {
+  const sorted = [...avatars].sort((a, b) => {
+    if (a.y !== b.y) return a.y - b.y;
+    return a.id.localeCompare(b.id);
+  });
+  const out: Record<string, number> = {};
+  sorted.forEach((a, rank) => {
+    out[a.id] = rank * Z_STRIDE + idTieSuffix(a.id);
+  });
+  return out;
+}
+
+/** Stable list order (by id); depth is from {@link computeAvatarStackZIndices} (passed as `stackZIndex`). */
+export function sortAvatarsStableById(avatars: ClientAvatar[]): ClientAvatar[] {
+  return [...avatars].sort((a, b) => a.id.localeCompare(b.id));
 }
 
 /**
@@ -66,8 +99,10 @@ export function mapSelfSqueeze(
       isSqueezed: true,
       isDancing: false,
       isMeditating: false,
+      isSleeping: false,
       isGreeting: false,
       isJumping: false,
+      isDead: false,
     };
   });
 }

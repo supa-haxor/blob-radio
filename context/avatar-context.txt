@@ -160,3 +160,8 @@ The avatar movement is handled by a dedicated MovementSystem class that provides
 - Avatar rendering and positioning
 - Context menu behavior and positioning
 - State synchronization logic 
+
+## Speech bubble (typed chat)
+
+- Server emits `avatar:speech` with `{ speakerId, text }` when it accepts a **normal** `chatMessage` (same moment as chat broadcast). `speakerId` is always the sender’s socket id.
+- Client: `AvatarSpeechProvider` + `onAvatarSpeech` hold transient text per avatar id (~5s). `Avatar` renders optional `speechText` above the name; not part of `avatars:update` merge.

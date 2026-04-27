@@ -1,8 +1,17 @@
-import type { MouseEvent, MutableRefObject, TouchEvent } from 'react';
+import type { ComponentProps, MouseEvent, MutableRefObject, TouchEvent } from 'react';
+import { useMemo } from 'react';
 import Avatar from './Avatar';
+import { computeAvatarStackZIndices } from '../lib/avatars';
+import { useSmoothedYForDepthOrder } from '../hooks/useSmoothedYForDepthOrder';
 import { useAvatars } from '../store/AvatarsStore';
+import { useAvatarSpeechLine } from '../store/AvatarSpeechStore';
 import { useMySession } from '../store/MySessionStore';
 import { useRoomUi } from '../store/RoomUiStore';
+
+function AvatarWithSpeech(props: ComponentProps<typeof Avatar>) {
+  const speechText = useAvatarSpeechLine(props.id);
+  return <Avatar {...props} speechText={speechText} />;
+}
 
 export interface AvatarsContainerProps {
   contextMenuLongPressTimerRef: MutableRefObject<ReturnType<typeof setTimeout> | null>;
@@ -19,14 +28,28 @@ export default function AvatarsContainer({
   onAvatarMouseDown,
   onAvatarMouseUp,
 }: AvatarsContainerProps) {
-  const { sortedAvatars } = useAvatars();
+  const { avatars, stableAvatars } = useAvatars();
   const { selfId } = useMySession();
   const { menuPosition, setMenuPosition, setSelectedAvatar } = useRoomUi();
 
+  const depthNodes = useMemo(
+    () => avatars.map((a) => ({ id: a.id, y: a.y })),
+    [avatars]
+  );
+  const smoothedYById = useSmoothedYForDepthOrder(depthNodes);
+
+  const stackZById = useMemo(() => {
+    const forStack = avatars.map((a) => ({
+      ...a,
+      y: smoothedYById[a.id] ?? a.y,
+    }));
+    return computeAvatarStackZIndices(forStack);
+  }, [avatars, smoothedYById]);
+
   return (
     <div className="avatars-container">
-      {sortedAvatars.map((avatar) => (
-        <Avatar
+      {stableAvatars.map((avatar) => (
+        <AvatarWithSpeech
           key={avatar.id}
           id={avatar.id}
           x={avatar.x}
@@ -38,6 +61,8 @@ export default function AvatarsContainer({
           isGreeting={avatar.isGreeting}
           isJumping={avatar.isJumping}
           isMeditating={avatar.isMeditating}
+          isSleeping={avatar.isSleeping}
+          isDead={avatar.isDead}
           isSqueezed={avatar.isSqueezed}
           isSelf={avatar.id === selfId}
           menuPosition={menuPosition}
@@ -49,6 +74,7 @@ export default function AvatarsContainer({
           onTouchMove={onTouchMove}
           setMenuPosition={setMenuPosition}
           setSelectedAvatar={setSelectedAvatar}
+          stackZIndex={stackZById[avatar.id]}
         />
       ))}
     </div>

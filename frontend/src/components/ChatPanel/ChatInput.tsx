@@ -1,18 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { emitChatMessage, emitUpdateMessage } from '../../socket';
+import { emitChatMessage, emitUpdateMessage, type ChatMessage } from '../../socket';
 import { useAvatarActions } from '../../store/AvatarActionsStore';
 import { useMusicQueue } from '../../store/MusicQueueStore';
-
-interface ChatMessage {
-  id: string;
-  text: string;
-  sender: string;
-  timestamp: Date;
-  senderColor: string;
-  messageType?: 'normal' | 'system' | 'notification' | 'quiet' | 'action';
-  broadcast?: boolean;
-  videoUrl?: string;
-}
 
 interface ChatInputProps {
   userName: string;
@@ -39,7 +28,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Get avatar actions from store at component level
-  const { triggerDance, triggerGreet, triggerJump, triggerMeditate } = useAvatarActions();
+  const { triggerDance, triggerGreet, triggerJump, triggerMeditate, triggerSleep, triggerDie } = useAvatarActions();
   
   // Get music queue actions
   const { addToQueue, skipSong, clearQueue, removeFromQueue, shuffleQueue, getNext3Songs, currentSong, history } = useMusicQueue();
@@ -148,6 +137,23 @@ const ChatInput: React.FC<ChatInputProps> = ({
         break;
       case '/greet':
         triggerGreet();
+        if (selfId) {
+          const fromName =
+            avatars.find((a) => a.id === selfId)?.name?.trim() ||
+            userName.trim() ||
+            'Anonymous';
+          emitChatMessage({
+            id: `${Date.now()}-${selfId}-greet-everyone`,
+            text: '',
+            sender: '',
+            timestamp: new Date(),
+            senderColor: '#D2691E',
+            messageType: 'greetEveryone',
+            greetFromId: selfId,
+            greetFromName: fromName,
+            broadcast: true,
+          });
+        }
         break;
       case '/jump':
         triggerJump();
@@ -173,6 +179,42 @@ const ChatInput: React.FC<ChatInputProps> = ({
           emitChatMessage(meditateMessage);
         }
         break;
+      case '/sleep': {
+        const currentAvatarSleep = avatars.find(a => a.id === selfId);
+        const isCurrentlySleeping = currentAvatarSleep?.isSleeping || false;
+
+        triggerSleep();
+
+        if (!isCurrentlySleeping) {
+          const sleepMessage: ChatMessage = {
+            id: Date.now().toString(),
+            text: `${userName} falls asleep`,
+            sender: '',
+            timestamp: new Date(),
+            senderColor: '#D2691E',
+            messageType: 'action',
+            broadcast: true,
+          };
+          emitChatMessage(sleepMessage);
+        }
+        break;
+      }
+      case '/die': {
+        const wasDead = avatars.find((a) => a.id === selfId)?.isDead || false;
+        triggerDie();
+        if (!wasDead) {
+          emitChatMessage({
+            id: Date.now().toString(),
+            text: `${userName} collapses`,
+            sender: '',
+            timestamp: new Date(),
+            senderColor: '#D2691E',
+            messageType: 'action',
+            broadcast: true,
+          });
+        }
+        break;
+      }
       case '/play':
         if (args.length === 0) {
           showSystemMessage('Usage: /play [YouTube URL or Playlist URL]', false);
@@ -475,19 +517,20 @@ const ChatInput: React.FC<ChatInputProps> = ({
         }
         break;
       case '/help':
-        // Show help message
+        // Show help message (room-wide so everyone sees the command list)
         showSystemMessage('Available commands:\n\n' +
-          'Avatar: /dance, /greet, /jump, /meditate\n\n' +
+          'Avatar: /dance, /greet, /jump, /meditate, /sleep, /die\n\n' +
           'Music: /play [URL/Playlist], /skip, /clear, /stop, /remove [#], /queue, /history, /shuffle\n\n' +
-          'Chat: /help, /clear', false);
+          'Chat: /help, /clear', true);
         break;
       default:
         // Unknown command - show help message
         console.log('Unknown command:', command);
         showSystemMessage(`Unknown command: ${command}. Available commands:\n\n` +
-          'Avatar: /dance, /greet, /jump, /meditate\n\n' +
+          'Avatar: /dance, /greet, /jump, /meditate, /sleep, /die (chat only)\n\n' +
           'Music: /play [URL/Playlist], /skip, /clear, /stop, /remove [#], /queue, /history, /shuffle\n\n' +
-          'Chat: /help, /clear');
+          'Chat: /help, /clear',
+          false);
         break;
     }
   };
@@ -503,7 +546,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       timestamp: new Date(),
       senderColor: isNotificationMessage ? '#FF6B35' : '#6366F1', // Orange for notifications, purple-blue for system
       messageType: isNotificationMessage ? 'notification' : 'system',
-      broadcast: isNotificationMessage ? broadcast : false // Only broadcast notification messages, system messages are always local
+      broadcast,
     };
 
     if (systemMessage.broadcast) {

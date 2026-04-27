@@ -1,20 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import '../styles/Chat.css';
-import { onChatMessage, onChatMessageUpdate, emitUpdateMessage } from '../socket';
+import {
+  onChatMessage,
+  onChatMessageUpdate,
+  emitUpdateMessage,
+  type ChatMessage,
+} from '../socket';
 import ChatInput from './ChatPanel/ChatInput';
 import ChatMessages from './ChatPanel/ChatMessages';
 import { useAvatars } from '../store/AvatarsStore';
 import { useChat } from '../store/ChatStore';
 import { useMySession } from '../store/MySessionStore';
-
-interface ChatMessage {
-  id: string;
-  text: string;
-  sender: string;
-  timestamp: Date;
-  senderColor: string;
-  messageType?: 'normal' | 'system' | 'notification' | 'quiet' | 'action';
-}
 
 const Chat: React.FC = () => {
   const { userName, selfColor, selfId } = useMySession();
@@ -158,6 +154,7 @@ const Chat: React.FC = () => {
     >
       <ChatMessages
         messages={messages}
+        selfId={selfId}
         isInputVisible={isChatOpen || isChatMessagesPeek}
         onMessagesChange={handleMessagesChange}
         onFadingMessagesChange={handleFadingMessagesChange}

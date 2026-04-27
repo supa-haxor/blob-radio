@@ -18,21 +18,6 @@
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
 .card {
   padding: 2em;
 }
@@ -123,14 +108,83 @@
 .avatar-container {
   position: absolute;
   pointer-events: none;
+  /* 0.5s must match `AVATAR_CONTAINER_TRANSFORM_MS` in useSmoothedYForDepthOrder.ts (depth z-index). */
   transition: transform 0.5s linear;
   will-change: transform;
+  /* Match .avatar height (80px) and translate(-50%, -50%) — fixed px avoids bottom:% + nested transform quirks */
+  --avatar-box-h: 80px;
+  --avatar-visual-half: 40px;
+  --avatar-speech-gap: 14px;
+  /* Extra left: bubble anchor is container center; blob reads a bit left of that */
+  --avatar-speech-nudge-x: 22px;
+  /* Optical vertical tweak (px); + moves bubble down */
+  --avatar-speech-nudge-y: 3px;
 }
 
 .avatar-wrapper {
   position: absolute;
   transform: translate(-50%, -50%);
   will-change: transform;
+}
+
+/* Sibling of .avatar — no dance transform; only opacity animates (no transform transition: parent already transitions transform) */
+.avatar-container > .avatar-speech-bubble {
+  --bubble-tx: calc(-50% - var(--avatar-speech-nudge-x));
+  --bubble-ty: var(--avatar-speech-nudge-y);
+  position: absolute;
+  left: 50%;
+  transform: translate(var(--bubble-tx), var(--bubble-ty));
+  opacity: 1;
+  transition: opacity 0.22s ease;
+  bottom: calc(var(--avatar-box-h) + var(--avatar-visual-half) + var(--avatar-speech-gap));
+  width: max-content;
+  max-width: 500px;
+  padding: 7px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #111;
+  font-family: 'Comic Sans MS', cursive;
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: center;
+  overflow-wrap: break-word;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 1002;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  border: 2px solid rgba(0, 0, 0, 0.2);
+}
+
+.avatar-container > .avatar-speech-bubble.is-bubble-enter,
+.avatar-container > .avatar-speech-bubble.is-bubble-leave {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar-container > .avatar-speech-bubble {
+    transition: none;
+  }
+
+  .avatar-container > .avatar-speech-bubble.is-bubble-enter,
+  .avatar-container > .avatar-speech-bubble.is-bubble-leave {
+    opacity: 1;
+  }
+}
+
+/* Tail centered on bubble bottom; tiny overlap kills the hairline gap under border-radius */
+.avatar-container > .avatar-speech-bubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  transform: translate(-50%, 1px);
+  border-width: 8px 8px 0 8px;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.95) transparent transparent transparent;
 }
 
 .avatar-name-stable {
@@ -172,6 +226,11 @@
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
+}
+
+/* Smooth margin when leaving /die only — no global transform transition (breaks dance/squeeze/walk). */
+.avatar:not(.dead) {
+  transition: margin-top 0.18s ease-out;
 }
 
 .avatar::before {
@@ -252,75 +311,282 @@
   animation: spin 4s linear infinite;
 }
 
-@keyframes dance {
-  0% {
-    transform: translate(-50%, -50%) scale(1, 1) rotate(0deg);
+.avatar.sleeping {
+  animation: sleep-breathe 3.5s ease-in-out infinite;
+  z-index: 18;
+}
+
+.avatar.sleeping .eyes::before,
+.avatar.sleeping .eyes::after {
+  width: 7px;
+  height: 2px;
+  border-radius: 2px;
+  background: black;
+  top: 17px;
+}
+
+.avatar-sleep-zzz {
+  position: absolute;
+  top: -34px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  z-index: 19;
+  pointer-events: none;
+  line-height: 1;
+  animation: sleep-zzz 2.2s ease-in-out infinite;
+}
+
+.avatar-sleep-z {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
+}
+
+.avatar-sleep-z--1 {
+  font-size: 9px;
+}
+
+.avatar-sleep-z--2 {
+  font-size: 14px;
+}
+
+.avatar-sleep-z--3 {
+  font-size: 19px;
+}
+
+/* /die — center pivot + rotate; +15px screen-Y drops the lying AABB so its bottom
+   matches upright feet (80/2 − 50/2). margin-top shifts layout before % translate. */
+.avatar.dead {
+  margin-top: 15px;
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center center;
+  z-index: 4;
+  animation: none;
+  transition: transform 0.45s cubic-bezier(0.33, 1, 0.68, 1), margin-top 0.18s ease-out 0.45s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar.dead {
+    transition: none;
   }
-  25% {
-    transform: translate(-50%, -50%) scale(1.1, 0.9) rotate(-5deg);
+
+  .avatar-dead-angel {
+    opacity: 0.62;
+    animation: none;
   }
-  50% {
-    transform: translate(-50%, -50%) scale(0.9, 1.1) rotate(0deg);
-  }
-  75% {
-    transform: translate(-50%, -50%) scale(1.1, 0.9) rotate(5deg);
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(1, 1) rotate(0deg);
+
+  .avatar-dead-angel-bob {
+    animation: none !important;
   }
 }
 
-@keyframes smile {
-  0% {
-    transform: scaleY(1);
-  }
-  100% {
-    transform: scaleY(0.8);
-  }
+.avatar.dead::before {
+  top: 9px;
+  border-radius: 0;
+  width: 30px;
 }
 
-@keyframes squeeze {
-  0% {
-    transform: translate(-50%, -50%) scale(1, 1);
-  }
-  50% {
-    transform: translate(-50%, -50%) scale(1.2, 0.8);
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(1, 1);
-  }
+.avatar.dead .eyes::before,
+.avatar.dead .eyes::after {
+  content: '×';
+  width: auto;
+  height: auto;
+  min-width: 10px;
+  background: transparent;
+  border-radius: 0;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+  color: #0a0a0a;
+  font-family: system-ui, sans-serif;
 }
 
-@keyframes jump {
-  0% {
-    transform: translate(-50%, -50%) scale(1.2, 0.8) translateY(0);
-  }
-  25% {
-    transform: translate(-50%, -50%) scale(1, 1) translateY(-30px);
-  }
-  75% {
-    transform: translate(-50%, -50%) scale(1, 1) translateY(-30px);
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(1.2, 0.8) translateY(0);
-  }
+.avatar-dead-tongue {
+  position: absolute;
+  left: 73%;
+  top: 31px;
+  width: 12px;
+  height: 9px;
+  margin-left: -6px;
+  background: #ff2357;
+  border-radius: 0 0 10px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  border-top: none;
+  z-index: 3;
+  transform: translateY(2px) rotate(0deg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
-@keyframes meditate {
-  0%, 100% {
-    transform: translate(-50%, -50%) translateY(0);
-  }
-  50% {
-    transform: translate(-50%, -50%) translateY(-20px);
-  }
+/* Soul / angel — Gotenks-style ghost (mint + violet), after corpse settle */
+.avatar-dead-angel {
+  --angel-loop: 1.35s;
+  --angel-after-drop: 0.63s;
+  --ghost-mint: #c2f5ec;
+  --ghost-mint-mid: #8fe3d8;
+  --ghost-mint-deep: #5cc9bc;
+  --ghost-violet: rgba(118, 86, 210, 0.55);
+  --ghost-violet-glow: rgba(168, 130, 255, 0.75);
+  --ghost-wing: #eefcff;
+  --ghost-wing-edge: rgba(100, 70, 190, 0.35);
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--avatar-box-h) + var(--avatar-visual-half) + 10px);
+  /* Match speech bubble: blob sits left of geometric center (see --avatar-speech-nudge-x on .avatar-container) */
+  transform: translateX(calc(-50% - var(--avatar-speech-nudge-x)));
+  z-index: 1001;
+  pointer-events: none;
+  width: 80px;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.28)) drop-shadow(0 0 10px rgba(130, 95, 235, 0.45));
+  opacity: 0;
+  animation: avatar-dead-angel-show 0.34s ease-out var(--angel-after-drop) forwards;
 }
 
-@keyframes spin {
+/* Halo + wings/body share one bob so the ring stays with the sprite */
+.avatar-dead-angel-bob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  transform-origin: 50% 58%;
+  animation: avatar-dead-angel-float var(--angel-loop) ease-in-out var(--angel-after-drop) infinite alternate;
+}
+
+.avatar-dead-angel-halo {
+  position: relative;
+  z-index: 10;
+  width: 26px;
+  height: 9px;
+  margin-bottom: 2px;
+  border: 2px solid rgba(255, 230, 140, 0.95);
+  border-radius: 50%;
+  background: rgba(255, 248, 200, 0.25);
+  box-shadow: 0 0 10px rgba(255, 220, 120, 0.65);
+}
+
+.avatar-dead-angel-flap {
+  position: relative;
+  z-index: 1;
+  width: 56px;
+  height: 32px;
+}
+
+.avatar-dead-angel-body {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  width: 22px;
+  height: 28px;
+  margin: -14px 0 0 -11px;
+  border-radius: 3px;
+  border: 2px solid var(--ghost-violet-glow);
+  background: linear-gradient(
+    180deg,
+    #f4fffd 0%,
+    var(--ghost-mint) 35%,
+    var(--ghost-mint-mid) 72%,
+    var(--ghost-mint-deep) 100%
+  );
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -8px 14px rgba(60, 160, 150, 0.22),
+    0 0 14px rgba(130, 95, 240, 0.42);
+}
+
+/* Same layout as .avatar mouth + .avatar .eyes, scaled as one unit (no giant eyes) */
+.avatar-dead-angel-face {
+  position: absolute;
+  left: 50%;
+  top: 1px;
+  width: 50px;
+  height: 44px;
+  margin-left: -25px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 10px;
+  box-sizing: border-box;
+  transform: scale(0.36);
+  transform-origin: top center;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.avatar-dead-angel-face-mouth {
+  position: relative;
+  top: 5px;
+  width: 20px;
+  height: 10px;
+  border: 2px solid #111;
+  border-color: transparent transparent #111 transparent;
+  border-radius: 0 0 10px 10px;
+  flex-shrink: 0;
+}
+
+.avatar-dead-angel-face .eyes {
+  position: absolute;
+  top: 15px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 5px;
+}
+
+.avatar-dead-angel-face .eyes::before,
+.avatar-dead-angel-face .eyes::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: #0a0a0a;
+  border-radius: 50%;
+}
+
+.avatar-dead-angel-wing {
+  position: absolute;
+  display: block;
+  top: 50%;
+  width: 22px;
+  height: 19px;
+  margin-top: -10px;
+  background: linear-gradient(145deg, var(--ghost-wing) 0%, #dceef8 40%, #b8d8f0 100%);
+  border: 1px solid var(--ghost-wing-edge);
+  z-index: 1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 0 8px rgba(130, 100, 230, 0.25);
+}
+
+/* Inner edge on centerline; bulge on outer side */
+.avatar-dead-angel-wing--l {
+  right: 50%;
+  border-radius: 68% 10px 10px 68%;
+}
+
+.avatar-dead-angel-wing--r {
+  left: 50%;
+  border-radius: 10px 68% 68% 10px;
+}
+
+@keyframes avatar-dead-angel-show {
   from {
-    transform: translateX(-50%) rotate(0deg);
+    opacity: 0;
+    transform: translateX(calc(-50% - var(--avatar-speech-nudge-x))) translateY(6px);
   }
   to {
-    transform: translateX(-50%) rotate(360deg);
+    opacity: 0.55;
+    transform: translateX(calc(-50% - var(--avatar-speech-nudge-x))) translateY(0);
+  }
+}
+
+@keyframes avatar-dead-angel-float {
+  0% {
+    transform: translateY(1px) rotate(-1.25deg);
+  }
+  100% {
+    transform: translateY(-6px) rotate(1.25deg);
   }
 }
 
@@ -375,11 +641,6 @@
   animation: emote-bounce 0.5s ease-in-out;
 }
 
-@keyframes emote-bounce {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.2); }
-}
-
 /* Animation classes for avatar body */
 .avatar-body.dancing {
   animation: dance 1s infinite;
@@ -403,17 +664,6 @@
 
 .avatar-body.squeezed {
   animation: squeeze 0.3s ease-in-out;
-}
-
-@keyframes walk {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-3px); }
-}
-
-@keyframes wave {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-15deg); }
-  75% { transform: rotate(15deg); }
 }
 
 .avatar-menu {
@@ -452,7 +702,7 @@
   background-color: #e0e0e0;
 }
 
-.avatar:hover {
+.avatar:not(.dead):hover {
   transform: translate(-50%, -50%) scale(1.1);
 }
 
@@ -476,26 +726,8 @@
   pointer-events: none;
 }
 
-.avatar.walking {
+.avatar.walking:not(.dead) {
   animation: walk 0.5s infinite;
-}
-
-@keyframes walk {
-  0% {
-    transform: translate(-50%, -50%) scale(1, 1);
-  }
-  25% {
-    transform: translate(-50%, -50%) scale(1.1, 0.9);
-  }
-  50% {
-    transform: translate(-50%, -50%) scale(0.9, 1.1);
-  }
-  75% {
-    transform: translate(-50%, -50%) scale(1.1, 0.9);
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(1, 1);
-  }
 }
 
 /* Welcome Page Styles */
@@ -598,17 +830,6 @@
   margin-top: 0.25rem;
 }
 
-@keyframes popIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
 .context-menu {
   position: fixed;
   background: white;
@@ -638,6 +859,22 @@
 }
 
 .context-menu button:hover {
+  background-color: #f0f0f0;
+}
+
+.context-menu .context-menu-greet-other {
+  display: block;
+  width: 100%;
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: 'Comic Sans MS', cursive;
+  font-size: 14px;
+}
+
+.context-menu .context-menu-greet-other:hover {
   background-color: #f0f0f0;
 }
 
@@ -980,17 +1217,6 @@
 
 .comic-button-secondary:hover {
   background-color: #555;
-}
-
-@keyframes modalPopIn {
-  from {
-    opacity: 0;
-    transform: scale(0.8) translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
 }
 
 /* Ensure modal content is scrollable on small screens */

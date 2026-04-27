@@ -17,6 +17,9 @@ export interface Avatar {
   isGreeting?: boolean;
   isJumping?: boolean;
   isMeditating?: boolean;
+  isSleeping?: boolean;
+  /** Chat-only `/die` — flat on floor, X eyes. */
+  isDead?: boolean;
   path?: AvatarPathPoint[];
   name?: string;
   isSqueezed?: boolean;

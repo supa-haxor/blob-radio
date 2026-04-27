@@ -1,17 +1,33 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import type { ChatMessage } from '../../socket';
 
-interface ChatMessage {
-  id: string;
-  text: string;
-  sender: string;
-  timestamp: Date;
-  senderColor: string;
-  messageType?: 'normal' | 'system' | 'notification' | 'quiet' | 'action';
-  videoUrl?: string; // Add this for clickable song titles
+function directedGreetLine(msg: ChatMessage, selfId: string | null): string {
+  const from = msg.greetFromName?.trim() || 'Someone';
+  const to = msg.greetToName?.trim() || 'Someone';
+  const fromId = msg.greetFromId;
+  const toId = msg.greetToId;
+  if (!selfId || !fromId || !toId) return `${from} is greeting ${to}`;
+  if (selfId === toId) return `${from} is greeting you`;
+  if (selfId === fromId) return `you are greeting ${to}`;
+  return `${from} is greeting ${to}`;
+}
+
+function greetEveryoneLine(msg: ChatMessage, selfId: string | null): string {
+  const from = msg.greetFromName?.trim() || 'Someone';
+  const fromId = msg.greetFromId;
+  if (selfId && fromId && selfId === fromId) return 'you are greeting everyone';
+  return `${from} is greeting everyone`;
+}
+
+function resolvedBroadcastLine(msg: ChatMessage, selfId: string | null): string {
+  if (msg.messageType === 'directedGreet') return directedGreetLine(msg, selfId);
+  if (msg.messageType === 'greetEveryone') return greetEveryoneLine(msg, selfId);
+  return msg.text;
 }
 
 interface ChatMessagesProps {
   messages: ChatMessage[];
+  selfId: string | null;
   isInputVisible: boolean;
   onMessagesChange: (messages: ChatMessage[]) => void;
   onFadingMessagesChange: (fadingMessages: Set<string>) => void;
@@ -27,6 +43,7 @@ const FADE_TRANSITION_DURATION = 300; // CSS transition duration
 
 const ChatMessages: React.FC<ChatMessagesProps> = ({
   messages,
+  selfId,
   isInputVisible,
   onMessagesChange,
   onFadingMessagesChange,
@@ -270,15 +287,24 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
         msg.messageType === 'notification' ? 'chat-message-notification' : '',
         msg.messageType === 'system' ? 'chat-message-system' : '',
         msg.messageType === 'quiet' ? 'chat-message-quiet' : '',
-        msg.messageType === 'action' ? 'chat-message-action' : '',
+        msg.messageType === 'action' ||
+        msg.messageType === 'directedGreet' ||
+        msg.messageType === 'greetEveryone'
+          ? 'chat-message-action'
+          : '',
         updatingMessages.has(msg.id) ? 'updating' : ''
       ].filter(Boolean).join(' ');
 
+      const simpleText =
+        msg.messageType === 'directedGreet' || msg.messageType === 'greetEveryone'
+          ? resolvedBroadcastLine(msg, selfId || null)
+          : msg.text;
+
       return (
         <div key={msg.id} className={messageClasses}>
-          {msg.messageType === 'notification' || msg.messageType === 'system' || msg.messageType === 'quiet' || msg.messageType === 'action' ? (
-            // Notification, system, quiet, and action messages: only show the text
-            <span className="chat-text">{formatTextWithItalics(msg.text, msg.videoUrl)}</span>
+          {msg.messageType === 'notification' || msg.messageType === 'system' || msg.messageType === 'quiet' || msg.messageType === 'action' || msg.messageType === 'directedGreet' || msg.messageType === 'greetEveryone' ? (
+            // Notification, system, quiet, action, directed greet: single line
+            <span className="chat-text">{formatTextWithItalics(simpleText, msg.videoUrl)}</span>
           ) : (
             // Regular messages: show full format
             <>

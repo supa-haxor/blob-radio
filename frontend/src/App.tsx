@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import './animations.css';
 import './App.css';
-import { emitProfileUpdate } from './socket';
+import { emitChatMessage, emitProfileUpdate } from './socket';
 import WelcomePage from './components/WelcomePage';
 import RoomView from './components/RoomView';
 import { AvatarActionsProvider, useAvatarActions } from './store/AvatarActionsStore';
 import { AvatarsProvider, useAvatars } from './store/AvatarsStore';
+import { AvatarSpeechProvider } from './store/AvatarSpeechStore';
 import { MySessionProvider, useMySession } from './store/MySessionStore';
 import { RoomUiProvider, useRoomUi } from './store/RoomUiStore';
 import { ChatProvider } from './store/ChatStore';
@@ -26,30 +28,39 @@ function App() {
   return (
     <MySessionProvider>
       <AvatarsProvider>
-        <RoomUiProvider>
-          <ChatProvider>
-            <MusicQueueProvider>
-              <AvatarActionsProvider>
-                <AppContent />
-              </AvatarActionsProvider>
-            </MusicQueueProvider>
-          </ChatProvider>
-        </RoomUiProvider>
+        <AvatarSpeechProvider>
+          <RoomUiProvider>
+            <ChatProvider>
+              <MusicQueueProvider>
+                <AvatarActionsProvider>
+                  <AppContent />
+                </AvatarActionsProvider>
+              </MusicQueueProvider>
+            </ChatProvider>
+          </RoomUiProvider>
+        </AvatarSpeechProvider>
       </AvatarsProvider>
     </MySessionProvider>
   );
 }
 
 function AppContent() {
-  const { selfId, setUserName, setSelfColor, setBackground } = useMySession();
-  const { setAvatars } = useAvatars();
+  const { selfId, userName, setUserName, setSelfColor, setBackground } = useMySession();
+  const { avatars, setAvatars } = useAvatars();
   const { setMenuPosition, selectedAvatar } = useRoomUi();
 
   const [showWelcome, setShowWelcome] = useState(() => shouldShowWelcomeInitially());
   const [isReady, setIsReady] = useState(() => isReadyFromStoredWelcomeFlag());
   const [isConnecting, setIsConnecting] = useState(false);
 
-  const { triggerDance, triggerGreet, triggerJump, triggerMeditate } = useAvatarActions();
+  const {
+    triggerDance,
+    triggerGreet,
+    triggerJump,
+    triggerMeditate,
+    triggerSleep,
+    clearAllSelfActions,
+  } = useAvatarActions();
 
   const movementSystemRef = useRoomMovement(showWelcome);
 
@@ -72,6 +83,7 @@ function AppContent() {
   } = useRoomInteractions({
     movementSystemRef,
     applySelfSqueeze,
+    clearAllSelfActions,
   });
 
   useEffect(() => {
@@ -108,8 +120,9 @@ function AppContent() {
         Greet: triggerGreet,
         Jump: triggerJump,
         Meditate: triggerMeditate,
+        Sleep: triggerSleep,
       }) as const,
-    [triggerDance, triggerGreet, triggerJump, triggerMeditate]
+    [triggerDance, triggerGreet, triggerJump, triggerMeditate, triggerSleep]
   );
 
   const handleMenuAction = (action: ContextMenuActionKey) => {
@@ -117,6 +130,34 @@ function AppContent() {
     menuActionHandlers[action]();
     setMenuPosition(null);
   };
+
+  const handleGreetOtherUser = useCallback(
+    (targetAvatarId: string) => {
+      if (!selfId || targetAvatarId === selfId) return;
+      triggerGreet();
+      const fromName =
+        avatars.find((a) => a.id === selfId)?.name?.trim() ||
+        userName?.trim() ||
+        'Anonymous';
+      const toName =
+        avatars.find((a) => a.id === targetAvatarId)?.name?.trim() || 'Anonymous';
+      emitChatMessage({
+        id: `${Date.now()}-${selfId}-greet-${targetAvatarId}`,
+        text: '',
+        sender: '',
+        timestamp: new Date(),
+        senderColor: '#D2691E',
+        messageType: 'directedGreet',
+        greetFromId: selfId,
+        greetToId: targetAvatarId,
+        greetFromName: fromName,
+        greetToName: toName,
+        broadcast: true,
+      });
+      setMenuPosition(null);
+    },
+    [selfId, triggerGreet, avatars, userName, setMenuPosition]
+  );
 
   if (showWelcome) {
     return <WelcomePage onComplete={handleWelcomeComplete} isConnecting={isConnecting} />;
@@ -127,6 +168,7 @@ function AppContent() {
       onRoomPointer={handleRoomInteraction}
       onModalComplete={handleModalComplete}
       onMenuAction={handleMenuAction}
+      onGreetOtherUser={handleGreetOtherUser}
       onAvatarInteraction={handleAvatarInteraction}
       onAvatarMouseDown={handleAvatarMouseDown}
       onAvatarMouseUp={handleAvatarMouseUp}

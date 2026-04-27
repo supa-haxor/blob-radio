@@ -16,7 +16,23 @@ const io = new Server(httpServer, {
   connectTimeout: 10000
 });
 
-const avatars = new Map<string, { x: number; y: number; color: string; isDancing?: boolean; isGreeting?: boolean; isJumping?: boolean; isMeditating?: boolean; isWalking?: boolean; name?: string }>();
+const avatars = new Map<string, { x: number; y: number; color: string; isDancing?: boolean; isGreeting?: boolean; isJumping?: boolean; isMeditating?: boolean; isSleeping?: boolean; isDead?: boolean; isWalking?: boolean; name?: string }>();
+
+function serializeAvatars(avatarsMap: Map<string, { x: number; y: number; color: string; isDancing?: boolean; isGreeting?: boolean; isJumping?: boolean; isMeditating?: boolean; isSleeping?: boolean; isDead?: boolean; isWalking?: boolean; name?: string }>) {
+  return Array.from(avatarsMap.entries()).map(([id, data]) => ({
+    id,
+    position: { x: data.x, y: data.y },
+    color: data.color,
+    isDancing: data.isDancing,
+    isGreeting: data.isGreeting,
+    isJumping: data.isJumping,
+    isMeditating: data.isMeditating,
+    isSleeping: data.isSleeping,
+    isDead: data.isDead,
+    isWalking: data.isWalking,
+    name: data.name || 'Anonymous'
+  }));
+}
 
 // In-memory chat history
 const recentMessages: any[] = [];
@@ -58,15 +74,7 @@ const musicState: MusicState = {
 };
 
 io.on('connection', (socket: any) => {
-  const initialAvatars = Array.from(avatars.entries()).map(([id, data]) => ({
-    id,
-    position: { x: data.x, y: data.y },
-    color: data.color,
-    isDancing: data.isDancing,
-    isWalking: data.isWalking,
-    name: data.name
-  }));
-  socket.emit('avatars:update', initialAvatars);
+  socket.emit('avatars:update', serializeAvatars(avatars));
 
   socket.on('avatar:position', (data: { position: { x: number; y: number }; isDancing?: boolean; isWalking?: boolean; name?: string; color?: string }) => {
     // If this is a new avatar, use the provided color or generate a random one
@@ -77,6 +85,8 @@ io.on('connection', (socket: any) => {
         color: data.color || `hsl(${Math.random() * 360}, 70%, 50%)`,
         isDancing: data.isDancing,
         isMeditating: false,
+        isSleeping: false,
+        isDead: false,
         isWalking: data.isWalking,
         name: data.name
       });
@@ -90,22 +100,13 @@ io.on('connection', (socket: any) => {
         // Don't update color and name from position updates - these should only come from profile updates
         isDancing: data.isDancing,
         isMeditating: false,
+        isSleeping: false,
+        isDead: false,
         isWalking: data.isWalking
       });
     }
 
-    const updatedAvatars = Array.from(avatars.entries()).map(([id, data]) => ({
-      id,
-      position: { x: data.x, y: data.y },
-      color: data.color,
-      isDancing: data.isDancing,
-      isGreeting: data.isGreeting,
-      isJumping: data.isJumping,
-      isMeditating: data.isMeditating,
-      isWalking: data.isWalking,
-      name: data.name || 'Anonymous'
-    }));
-    io.emit('avatars:update', updatedAvatars);
+    io.emit('avatars:update', serializeAvatars(avatars));
   });
 
   socket.on('avatar:dance', (data: { isDancing: boolean }) => {
@@ -115,20 +116,11 @@ io.on('connection', (socket: any) => {
       // Stop meditation when starting to dance
       if (data.isDancing) {
         avatar.isMeditating = false;
+        avatar.isSleeping = false;
+        avatar.isDead = false;
       }
       
-      const updatedAvatars = Array.from(avatars.entries()).map(([id, data]) => ({
-        id,
-        position: { x: data.x, y: data.y },
-        color: data.color,
-        isDancing: data.isDancing,
-        isGreeting: data.isGreeting,
-        isJumping: data.isJumping,
-        isMeditating: data.isMeditating,
-        isWalking: data.isWalking,
-        name: data.name || 'Anonymous'
-      }));
-      io.emit('avatars:update', updatedAvatars);
+      io.emit('avatars:update', serializeAvatars(avatars));
     }
   });
 
@@ -139,20 +131,11 @@ io.on('connection', (socket: any) => {
       // Stop meditation when starting to greet
       if (data.isGreeting) {
         avatar.isMeditating = false;
+        avatar.isSleeping = false;
+        avatar.isDead = false;
       }
       
-      const updatedAvatars = Array.from(avatars.entries()).map(([id, data]) => ({
-        id,
-        position: { x: data.x, y: data.y },
-        color: data.color,
-        isDancing: data.isDancing,
-        isGreeting: data.isGreeting,
-        isJumping: data.isJumping,
-        isMeditating: data.isMeditating,
-        isWalking: data.isWalking,
-        name: data.name || 'Anonymous'
-      }));
-      io.emit('avatars:update', updatedAvatars);
+      io.emit('avatars:update', serializeAvatars(avatars));
     }
   });
 
@@ -163,20 +146,11 @@ io.on('connection', (socket: any) => {
       // Stop meditation when starting to jump
       if (data.isJumping) {
         avatar.isMeditating = false;
+        avatar.isSleeping = false;
+        avatar.isDead = false;
       }
       
-      const updatedAvatars = Array.from(avatars.entries()).map(([id, data]) => ({
-        id,
-        position: { x: data.x, y: data.y },
-        color: data.color,
-        isDancing: data.isDancing,
-        isGreeting: data.isGreeting,
-        isJumping: data.isJumping,
-        isMeditating: data.isMeditating,
-        isWalking: data.isWalking,
-        name: data.name || 'Anonymous'
-      }));
-      io.emit('avatars:update', updatedAvatars);
+      io.emit('avatars:update', serializeAvatars(avatars));
     }
   });
 
@@ -187,20 +161,38 @@ io.on('connection', (socket: any) => {
       // Stop dancing when starting to meditate
       if (data.isMeditating) {
         avatar.isDancing = false;
+        avatar.isSleeping = false;
+        avatar.isDead = false;
       }
       
-      const updatedAvatars = Array.from(avatars.entries()).map(([id, data]) => ({
-        id,
-        position: { x: data.x, y: data.y },
-        color: data.color,
-        isDancing: data.isDancing,
-        isGreeting: data.isGreeting,
-        isJumping: data.isJumping,
-        isMeditating: data.isMeditating,
-        isWalking: data.isWalking,
-        name: data.name || 'Anonymous'
-      }));
-      io.emit('avatars:update', updatedAvatars);
+      io.emit('avatars:update', serializeAvatars(avatars));
+    }
+  });
+
+  socket.on('avatar:sleep', (data: { isSleeping: boolean }) => {
+    if (avatars.has(socket.id)) {
+      const avatar = avatars.get(socket.id)!;
+      avatar.isSleeping = data.isSleeping;
+      if (data.isSleeping) {
+        avatar.isDancing = false;
+        avatar.isMeditating = false;
+        avatar.isDead = false;
+      }
+
+      io.emit('avatars:update', serializeAvatars(avatars));
+    }
+  });
+
+  socket.on('avatar:die', (data: { isDead: boolean }) => {
+    if (avatars.has(socket.id)) {
+      const avatar = avatars.get(socket.id)!;
+      avatar.isDead = data.isDead;
+      if (data.isDead) {
+        avatar.isDancing = false;
+        avatar.isMeditating = false;
+        avatar.isSleeping = false;
+      }
+      io.emit('avatars:update', serializeAvatars(avatars));
     }
   });
 
@@ -211,18 +203,7 @@ io.on('connection', (socket: any) => {
       avatar.name = data.name;
       avatar.color = data.color;
       
-      const updatedAvatars = Array.from(avatars.entries()).map(([id, data]) => ({
-        id,
-        position: { x: data.x, y: data.y },
-        color: data.color,
-        isDancing: data.isDancing,
-        isGreeting: data.isGreeting,
-        isJumping: data.isJumping,
-        isMeditating: data.isMeditating,
-        isWalking: data.isWalking,
-        name: data.name || 'Anonymous'
-      }));
-      io.emit('avatars:update', updatedAvatars);
+      io.emit('avatars:update', serializeAvatars(avatars));
     }
   });
 
@@ -257,6 +238,20 @@ io.on('connection', (socket: any) => {
     } else {
       // Send only to the sender
       socket.emit('chatMessage', message);
+    }
+
+    // Speech bubble over avatar: typed normal chat only; speaker id from socket (not client payload)
+    if (message?.messageType === 'normal' && typeof message?.text === 'string') {
+      const trimmed = message.text.trim();
+      if (trimmed.length > 0) {
+        const text = trimmed.slice(0, 400);
+        const payload = { speakerId: socket.id, text };
+        if (message.broadcast !== false) {
+          io.emit('avatar:speech', payload);
+        } else {
+          socket.emit('avatar:speech', payload);
+        }
+      }
     }
   });
 

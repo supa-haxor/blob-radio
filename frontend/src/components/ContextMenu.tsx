@@ -7,9 +7,10 @@ export type ContextMenuActionKey = (typeof CONTEXT_MENU_ITEMS)[number]['action']
 
 export interface ContextMenuProps {
   onMenuAction: (action: ContextMenuActionKey) => void;
+  onGreetOtherUser: (targetAvatarId: string) => void;
 }
 
-export default function ContextMenu({ onMenuAction }: ContextMenuProps) {
+export default function ContextMenu({ onMenuAction, onGreetOtherUser }: ContextMenuProps) {
   const { avatars } = useAvatars();
   const { selfId } = useMySession();
   const { menuPosition, selectedAvatar } = useRoomUi();
@@ -44,9 +45,18 @@ export default function ContextMenu({ onMenuAction }: ContextMenuProps) {
           ))}
         </>
       ) : (
-        <div className="avatar-id">
-          {avatars.find((a) => a.id === selectedAvatar)?.name || 'Anonymous'}
-        </div>
+        <button
+          type="button"
+          className="context-menu-greet-other"
+          onClick={() => onGreetOtherUser(selectedAvatar)}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onGreetOtherUser(selectedAvatar);
+          }}
+        >
+          Greet
+        </button>
       )}
     </div>
   );

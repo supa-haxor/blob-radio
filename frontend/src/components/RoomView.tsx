@@ -12,6 +12,7 @@ export interface RoomViewProps {
   onRoomPointer: (e: MouseEvent | TouchEvent) => void;
   onModalComplete: (name: string, color: string, bg: string) => Promise<void>;
   onMenuAction: (action: ContextMenuActionKey) => void;
+  onGreetOtherUser: (targetAvatarId: string) => void;
   onAvatarInteraction: (e: MouseEvent | TouchEvent, avatarId: string) => void;
   onAvatarMouseDown: (e: MouseEvent, avatarId: string) => void;
   onAvatarMouseUp: (e: MouseEvent, avatarId: string) => void;
@@ -21,6 +22,7 @@ export default function RoomView({
   onRoomPointer,
   onModalComplete,
   onMenuAction,
+  onGreetOtherUser,
   onAvatarInteraction,
   onAvatarMouseDown,
   onAvatarMouseUp,
@@ -63,7 +65,7 @@ export default function RoomView({
         </div>
       </div>
 
-      <ContextMenu onMenuAction={onMenuAction} />
+      <ContextMenu onMenuAction={onMenuAction} onGreetOtherUser={onGreetOtherUser} />
 
       <WelcomeModal
         isOpen={showModal}

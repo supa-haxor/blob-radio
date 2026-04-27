@@ -14,9 +14,11 @@ import type { MovementSystem } from '../movement';
 export function useRoomInteractions({
   movementSystemRef,
   applySelfSqueeze,
+  clearAllSelfActions,
 }: {
   movementSystemRef: RefObject<MovementSystem | null>;
   applySelfSqueeze: (squeezed: boolean) => void;
+  clearAllSelfActions: () => void;
 }) {
   const { isChatOpen } = useChat();
   const { selfId } = useMySession();
@@ -73,7 +75,9 @@ export function useRoomInteractions({
       if (avatarId === selfId) {
         if ('touches' in e) {
           applySelfSqueeze(true);
+          return;
         }
+        clearAllSelfActions();
         return;
       }
 
@@ -89,7 +93,7 @@ export function useRoomInteractions({
         return;
       }
     },
-    [selfId, applySelfSqueeze, setMenuPosition, setSelectedAvatar]
+    [selfId, applySelfSqueeze, clearAllSelfActions, setMenuPosition, setSelectedAvatar]
   );
 
   const handleAvatarMouseDown = useCallback(
